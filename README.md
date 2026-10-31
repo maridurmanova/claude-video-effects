@@ -11,6 +11,10 @@ pip install -r ~/.claude/skills/effects/requirements.txt
 ```
 
 Нужны Python 3.10+ и ffmpeg (`brew install ffmpeg`).
+
+Или без терминала: скачай [effects-skill.zip](https://github.com/maridurmanova/claude-video-effects/raw/main/effects-skill.zip)
+и загрузи его в приложении Claude: Настройки → Персонализация → Скиллы → «Добавить скилл».
+Так скилл работает в облаке Claude: видео прикрепляешь прямо в чат.
 При первом запуске один раз скачается модель, которая вырезает человека из кадра (~170 МБ).
 
 ## Как пользоваться

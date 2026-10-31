@@ -13,8 +13,12 @@ Usage the user types:
 /effects reel               — showcase: one clip → 7 edits, music + UI sounds, no voice
 ```
 
-All scripts live next to this file (`~/.claude/skills/effects/`). Python 3.10+, ffmpeg,
-`pip install -r requirements.txt`. First run downloads a person-segmentation model (~170 MB, once).
+All scripts live next to this file — in Claude Code that is `~/.claude/skills/effects/`; when the skill
+was uploaded in the Claude app (Settings → Skills) it is wherever this SKILL.md sits in the sandbox, so
+`cd` to this file's folder first. Python 3.10+, ffmpeg, `pip install -r requirements.txt`
+(add `--break-system-packages` if pip refuses). First run downloads a person-segmentation model
+(~170 MB, once, from github.com). In the Claude app the video comes as a chat attachment: make a
+1080x1920 proxy first, render, then hand the mp4 back as a file.
 
 ## Effects
 
