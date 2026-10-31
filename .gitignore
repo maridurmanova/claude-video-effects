@@ -1,0 +1,7 @@
+__pycache__/
+*.frames/
+*.masks.npz
+*.mp4
+*.wav
+*.png
+!examples/*.png
