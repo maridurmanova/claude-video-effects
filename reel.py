@@ -40,11 +40,11 @@ def popup_for(s, mods):
     return [("/effects", f"{len(mods)} видеоэффектов для твоего клипа")]
 
 
-def cta_poster(ctx, thumbs, t, mods):
+def cta_poster(ctx, thumbs, t, mods, word="claude"):
     img = Image.new("RGB", (W, H), (30, 30, 28))
     d = ImageDraw.Draw(img)
     q = ease_back(prog(t, 0.0, 0.4))
-    d.text((W // 2, 230 - 30 * (1 - q)), "Напиши «claude»", font=font("oswald", 130, 700), fill=(255, 255, 255), anchor="mm")
+    d.text((W // 2, 230 - 30 * (1 - q)), f"Напиши «{word}»", font=font("oswald", int(min(130, 130 * 960 / tw(f"Напиши «{word}»", font("oswald", 130, 700)))), 700), fill=(255, 255, 255), anchor="mm")
     f = font("sans", 38, 700)
     s = f"и получи все {len(mods)} эффектов"
     pw = tw(s, f) + 70
@@ -79,6 +79,11 @@ def main():
     ap.add_argument("--name"); ap.add_argument("--handle")
     ap.add_argument("--effects", default=",".join(ORDER))
     ap.add_argument("--preview", type=float, default=None, help="render one frame at time t to PNG")
+    ap.add_argument("--word", default="claude", help="code word for the final call-to-action")
+    ap.add_argument("--music-file", help="your own track instead of the synthesized bed")
+    ap.add_argument("--music-start", type=float, default=0.0, help="start the track from this second")
+    ap.add_argument("--sfx-gain", type=float, default=1.0, help="volume of UI sounds relative to music")
+    ap.add_argument("--reuse", help="previous render: keep its picture before the final CTA, re-render only the end")
     a = ap.parse_args()
     cfg = {k: v for k, v in (("name", a.name), ("handle", a.handle)) if v}
     ctx = Ctx(a.video, cfg)
@@ -115,23 +120,23 @@ def main():
                 return ui.chat(cmd, thumb_src, f"Монтирую: {m.NAME}…", eff, 1, zoom=prog(ts_, T_Z0, T_Z1 - T_Z0))
             return eff
         te = t - n * SEG
+        word = a.word
         if te < 0.70:
-            s, key = typed("claude", te * 1.0 + 0.0 if te > 0 else 0)
-            s = "claude"[: int(6 * clamp((te - 0.1) / 0.45))]
+            s = word[: int(len(word) * clamp((te - 0.1) / 0.45))]
             key = s[-1] if s and te < 0.6 else None
-            return ui.compose(s, None, None, key)
-        reply_full = ["Напиши «claude» в комментариях —", f"пришлю все {n} эффектов"]
+            return ui.compose(s, None, None, key, ru=any("а" <= ch.lower() <= "я" for ch in word))
+        reply_full = [f"Напиши «{word}» в комментариях —", f"пришлю все {n} эффектов"]
         rp = clamp((te - 0.75) / 0.55)
         chars = int(sum(len(x) for x in reply_full) * rp)
         rep, c = [], chars
         for ln in reply_full:
             rep.append(ln[:max(0, c)]); c -= len(ln)
-        poster = cta_poster(ctx, grid, te - 1.95, mods)
+        poster = cta_poster(ctx, grid, te - 1.95, mods, word)
         if te < 1.65:
-            return ui.chat("claude", None, None, poster, ease_in_out(prog(te, 1.2, 0.45)), reply=rep,
+            return ui.chat(word, None, None, poster, ease_in_out(prog(te, 1.2, 0.45)), reply=rep,
                            show_card=te >= 1.2)
         if te < 1.95:
-            return ui.chat("claude", None, None, poster, 1, zoom=prog(te, 1.65, 0.3), reply=rep)
+            return ui.chat(word, None, None, poster, 1, zoom=prog(te, 1.65, 0.3), reply=rep)
         return poster
 
     if a.preview is not None:
@@ -150,21 +155,30 @@ def main():
             if d0 + st < t0 + SEG - 0.05:
                 ev.append((d0 + st, name, 0.8))
     te0 = n * SEG
-    for i in range(6):
-        ev.append((te0 + 0.1 + 0.45 * (i + 1) / 6, "key", 0.5))
+    for i in range(len(a.word)):
+        ev.append((te0 + 0.1 + 0.45 * (i + 1) / len(a.word), "key", 0.5))
     ev += [(te0 + 0.65, "send", 0.8), (te0 + 1.2, "sparkle", 1), (te0 + 0.75, "riser", 0.9),
            (te0 + 1.95, "impact", 1.0)]
     for i in range(len(grid)):
         ev.append((te0 + 1.95 + 0.1 + i * 0.07, "pop", 0.6))
     sections = [(0, n * SEG, 1.0), (n * SEG, n * SEG + 1.95, 0.35), (n * SEG + 1.95, total + 1, 1.0)]
     wav = a.out + ".wav"
-    audio.build(total, ev, sections, wav, BPM)
+    ev = [(t, nm, g * a.sfx_gain) for t, nm, g in ev]
+    audio.build(total, ev, sections, wav, BPM, music_file=a.music_file, music_start=a.music_start)
 
     # ---------------- picture
     tmp = a.out + ".video.mp4"
     wr = Writer(tmp, crf=14)
     N = int(round(total * FPS))
-    for i in range(N):
+    first = 0
+    if a.reuse:
+        first = int(round(n * SEG * FPS))
+        p = subprocess.Popen(["ffmpeg", "-v", "error", "-i", a.reuse, "-frames:v", str(first), "-f", "rawvideo",
+                              "-pix_fmt", "rgb24", "-"], stdout=subprocess.PIPE)
+        for _ in range(first):
+            wr.p.stdin.write(p.stdout.read(W * H * 3))
+        p.wait()
+    for i in range(first, N):
         wr.write(frame_at(i / FPS))
         if i % 60 == 0:
             print(f"frame {i}/{N}", flush=True)

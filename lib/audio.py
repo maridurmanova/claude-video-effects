@@ -212,9 +212,23 @@ def music(duration, bpm=137.14, sections=None, seed=1):
     return np.stack([L, R], 1)
 
 
-def build(duration, events, sections, out_wav, bpm=137.14):
+def load_track(path, duration, start=0.0):
+    """Decode any audio file to stereo float at SR, trimmed to `duration`, with a short fade in/out."""
+    raw = subprocess.check_output(["ffmpeg", "-v", "error", "-ss", str(start), "-i", path, "-t", str(duration),
+                                   "-af", "loudnorm=I=-16:TP=-1.5", "-ac", "2", "-ar", str(SR), "-f", "f32le", "-"])
+    x = np.frombuffer(raw, np.float32).reshape(-1, 2).astype(np.float64)
+    n = int(duration * SR)
+    out = np.zeros((n, 2)); out[:min(n, len(x))] = x[:n]
+    fi = int(0.05 * SR); out[:fi] *= np.linspace(0, 1, fi)[:, None]
+    return out
+
+
+def build(duration, events, sections, out_wav, bpm=137.14, music_file=None, music_start=0.0):
     """events: list of (time, name, gain). Writes a 44.1k stereo wav, loudness-normalised."""
-    mix = music(duration, bpm, sections) * 0.55
+    if music_file:
+        mix = load_track(music_file, duration, music_start) * 0.9
+    else:
+        mix = music(duration, bpm, sections) * 0.55
     for t, name, g in events:
         s = SFX[name]()
         i0 = int(t * SR)

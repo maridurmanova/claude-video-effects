@@ -4,6 +4,7 @@ from PIL import Image, ImageDraw, ImageFilter
 from .core import *
 
 KB_ROWS = ["qwertyuiop", "asdfghjkl", "zxcvbnm"]
+KB_RU = ["йцукенгшщзх", "фывапролджэ", "ячсмитьбю"]
 KB_Y = 1250
 CARD = (60, 520, 60 + 560, 520 + 996)
 
@@ -29,21 +30,25 @@ def _thumb(img, size, r=18):
     return o
 
 
-def keyboard(img, pressed=None, typed_word=""):
+def keyboard(img, pressed=None, typed_word="", ru=None):
     d = ImageDraw.Draw(img)
+    ru = ru if ru is not None else any("а" <= ch.lower() <= "я" or ch in "ёЁ" for ch in typed_word)
+    rows = KB_RU if ru else KB_ROWS
     d.rectangle((0, KB_Y, W, H), fill=(30, 30, 30))
     # suggestion strip
     if typed_word:
         d.text((W // 2, KB_Y + 52), f"«{typed_word}»", font=font("sans", 34, 500), fill=UI_TEXT, anchor="mm")
-    kw, kh, gap = 98, 118, 10
+    kh, gap = 118, 10
+    longest = max(len(r) for r in rows)
+    kw = min(98, (1060 - (longest - 1) * gap) / longest)
     keys = {}
     y = KB_Y + 120
-    for r, row in enumerate(KB_ROWS):
+    for r, row in enumerate(rows):
         total = len(row) * kw + (len(row) - 1) * gap
         x = (W - total) / 2
         for ch in row:
             d.rounded_rectangle((x, y, x + kw, y + kh), 14, fill=(92, 92, 90))
-            d.text((x + kw / 2, y + kh / 2), ch, font=font("sans", 50, 400), fill=(255, 255, 255), anchor="mm")
+            d.text((x + kw / 2, y + kh / 2), ch, font=font("sans", 50 if kw > 90 else 44, 400), fill=(255, 255, 255), anchor="mm")
             keys[ch] = (x, y)
             x += kw + gap
         y += kh + 26
@@ -63,7 +68,7 @@ def keyboard(img, pressed=None, typed_word=""):
         d.text((bx + bw / 2, by + 62), pressed, font=font("sans", 76, 500), fill=(255, 255, 255), anchor="mm")
 
 
-def compose(text, thumb, popup=None, pressed=None, cursor=True):
+def compose(text, thumb, popup=None, pressed=None, cursor=True, ru=None):
     img, d = _base()
     # popup with slash command suggestions
     cy0 = 880
@@ -94,7 +99,7 @@ def compose(text, thumb, popup=None, pressed=None, cursor=True):
     d.polygon([(975, cy0 + 278), (958, cy0 + 300), (992, cy0 + 300)], fill=(255, 255, 255))
     d.line((975, cy0 + 296, 975, cy0 + 318), fill=(255, 255, 255), width=6)
     word = text.split(" ")[-1].lstrip("/")
-    keyboard(img, pressed, word)
+    keyboard(img, pressed, word, ru)
     return img
 
 

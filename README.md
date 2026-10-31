@@ -43,6 +43,8 @@ python3 run.py glass-widgets my_clip.mp4 --preview 1,2.5,5     # кадры на
 python3 run.py glass-widgets my_clip.mp4 -o glass.mp4          # весь ролик, голос сохраняется
 python3 run.py orbit my_clip.mp4 --no-voice --music            # только музыка и звуки
 python3 reel.py my_clip.mp4 -o reel.mp4                        # шоу-рилс со всеми эффектами
+python3 reel.py my_clip.mp4 --word эффекты --music-file track.mp3 --music-start 62 --sfx-gain 0.4
+#   ↑ своё кодовое слово в финале, свой трек с 1:02, звуки интерфейса тише
 ```
 
 ## Свои тексты
